@@ -1,31 +1,48 @@
-import app from "./app";
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
 
-export class MyMCP extends McpAgent {
-	server = new McpServer({
-		name: "Demo",
-		version: "1.0.0",
-	});
+import app from "./app";
 
-	async init() {
-		this.server.tool("add", { a: z.number(), b: z.number() }, async ({ a, b }) => ({
-			content: [{ type: "text", text: String(a + b) }],
-		}));
-	}
+import { registerAllTools } from "./tools";
+import { toolRegistry } from "./utils/tools";
+
+export class MyMCP extends McpAgent {
+    server = new McpServer({
+        name: "Demo MCP Server",
+        version: "1.0.0",
+    });
+
+    async init() {
+        // 注册所有工具
+        registerAllTools();
+        
+        // 动态注册所有工具到 MCP 服务器
+        for (const tool of toolRegistry.getAllTools()) {
+            this.server.tool(
+                tool.name,
+                tool.description,
+                tool.schema,
+                async (args): Promise<any> => {
+                    return await toolRegistry.executeTool(tool.name, args);
+                }
+            );
+        }
+    }
 }
 
 // Export the OAuth handler as the default
 export default new OAuthProvider({
-	apiRoute: "/sse",
-	// TODO: fix these types
-	// @ts-ignore
-	apiHandler: MyMCP.mount("/sse"),
-	// @ts-ignore
-	defaultHandler: app,
-	authorizeEndpoint: "/authorize",
-	tokenEndpoint: "/token",
-	clientRegistrationEndpoint: "/register",
+    // TODO: fix these types
+    apiHandlers: {
+        // @ts-ignore
+        '/sse': MyMCP.serveSSE('/sse'),
+        // @ts-ignore
+        '/mcp': MyMCP.serve('/mcp'),
+    },
+    // @ts-ignore
+    defaultHandler: app,
+    authorizeEndpoint: "/authorize",
+    tokenEndpoint: "/token",
+    clientRegistrationEndpoint: "/register",
 });
