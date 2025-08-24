@@ -1,25 +1,29 @@
 {
-	"name": "remote-mcp-server",
+	"name": "workers-mcp",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
+		"gen:tools": "node scripts/generate-tools-manifest.cjs",
+		"predev": "npm run gen:tools",
+		"predeploy": "npm run gen:tools",
+		"prestart": "npm run gen:tools",
 		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
+		"dev": "wrangler pages dev --compatibility-date=2025-03-10 --compatibility-flag=nodejs_compat",
 		"format": "biome format --write",
 		"lint:fix": "biome lint --fix",
-		"start": "wrangler dev",
+		"start": "wrangler pages dev --compatibility-date=2025-03-10 --compatibility-flag=nodejs_compat",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
+		"@types/node": "^24.3.0",
 		"marked": "^15.0.7",
 		"typescript": "^5.5.2",
 		"workers-mcp": "^0.1.0-3",
 		"wrangler": "^4.2.0"
 	},
 	"dependencies": {
-		"@cloudflare/workers-oauth-provider": "^0.0.4",
 		"@modelcontextprotocol/sdk": "^1.7.0",
-		"agents": "^0.0.76",
+		"@supabase/supabase-js": "^2.39.7",
 		"hono": "^4.7.4",
 		"zod": "^3.24.2"
 	}

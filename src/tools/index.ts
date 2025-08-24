@@ -1,26 +1,50 @@
-import { AddTool } from './add';
-import { WebSearchTool } from './web-search';
-import { WebUrlReadTool } from './web-url-read';
-import { SequentialThinkingTool } from './sequentialthinking';
+import { toolConstructors } from './manifest';
 import { toolRegistry } from '../utils/tools';
 
-// 注册所有工具的函数
+/**
+ * 动态注册所有工具
+ * 基于自动生成的 manifest.ts 文件，实现工具的动态发现与注册
+ */
 export function registerAllTools(): void {
-    // 注册基础计算工具
-    toolRegistry.registerTool(new AddTool());
+    console.log(`[tools] 开始注册 ${toolConstructors.length} 个工具...`);
     
-    // 注册网络搜索工具
-    toolRegistry.registerTool(new WebSearchTool());
+    for (const ToolConstructor of toolConstructors) {
+        try {
+            const toolInstance = new ToolConstructor();
+            toolRegistry.registerTool(toolInstance);
+            console.log(`[tools] 已注册工具: ${toolInstance.name}`);
+        } catch (error) {
+            console.error(`[tools] 注册工具失败: ${ToolConstructor.name}`, error);
+        }
+    }
     
-    // 注册URL阅读工具
-    toolRegistry.registerTool(new WebUrlReadTool());
-    
-    // 注册 SequentialThinking 工具
-    toolRegistry.registerTool(new SequentialThinkingTool());
-    
-    // 可在此处添加更多工具注册
-    // toolRegistry.registerTool(new SomeOtherTool());
+    console.log(`[tools] 工具注册完成，共 ${toolRegistry.getAllTools().length} 个工具可用`);
 }
 
-// 导出所有工具类供直接使用
-export { AddTool, WebSearchTool, WebUrlReadTool, SequentialThinkingTool };
+/**
+ * 获取所有已注册的工具信息
+ */
+export function getRegisteredToolsInfo() {
+    const tools = toolRegistry.getAllTools();
+    return tools.map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        schema: tool.schema,
+    }));
+}
+
+/**
+ * 重新加载工具（开发环境热重载支持）
+ */
+export function reloadTools(): void {
+    console.log(`[tools] 开始重新加载工具，当前已注册 ${toolRegistry.getToolCount()} 个工具`);
+    
+    // 清空当前注册的工具
+    toolRegistry.clearAllTools();
+    
+    // 重新注册所有工具
+    registerAllTools();
+}
+
+// 导出工具构造器供直接使用（保持向后兼容）
+export { toolConstructors };

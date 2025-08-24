@@ -1,117 +1,169 @@
-# Remote MCP Server on Cloudflare
+# workers-mcp
 
-Let's get a remote MCP server up-and-running on Cloudflare Workers complete with OAuth login!
+一个基于 Cloudflare Pages Functions + Hono 的轻量化远程工具服务（MCP 风格）。特性：
+- Pages Functions 无状态运行，静态首页 + API 一体化，零外部依赖
+- 工具系统标准接口 + 动态发现（构建期生成 manifest，运行期只读注册）
+- API Token 鉴权中间件（Authorization: Bearer 或 x-api-key，来源环境变量 API_TOKENS）
+- 去 OAuth / 去 R2，存储抽象预留 Supabase/Vercel KV/Deno KV（默认内存占位）
+- MCP 对齐：提供 /mcp/tools（清单），/mcp/invoke 最小兼容已实现
 
-## Develop locally
+注意：本仓库默认名称已统一为 workers-mcp（package.json、wrangler.jsonc、README）。
 
+## 快速开始（本地）
+
+前置要求
+- Node.js ≥ 18
+- Wrangler ≥ 4（登录：wrangler login）
+
+安装与开发
 ```bash
-# clone the repository
-git clone git@github.com:cloudflare/ai.git
+# 安装依赖
+npm i
 
-# install dependencies
-cd ai
-npm install
+# 生成工具清单（也会在 dev/deploy/start 前自动生成）
+npm run gen:tools
 
-# run locally
-npx nx dev remote-mcp-server
+# 以 Cloudflare Pages 模式本地开发（推荐）
+wrangler pages dev .
 ```
 
-You should be able to open [`http://localhost:8787/`](http://localhost:8787/) in your browser
+打开终端打印的本地地址（通常 http://127.0.0.1:8788/）：
+- 首页：工具清单与示例抽屉（纯 HTML/CSS/JS）
+- 健康检查：/health
+- 工具清单：/tools（公开）
+- MCP 工具清单：/mcp/tools（公开）
+- 调用工具：/invoke（需要 Token）
+- MCP 调用：/mcp/invoke（需要 Token）
 
-## Connect the MCP inspector to your server
+如果你继续使用 `npm run dev`（wrangler dev），将以 Workers 方式启动，不会加载 Pages 静态页与 functions 路由。建议切换 `wrangler pages dev .` 进行 Pages 化开发。
 
-To explore your new MCP api, you can use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector).
+## 环境变量
 
-- Start it with `npx @modelcontextprotocol/inspector`
-- [Within the inspector](http://localhost:5173), switch the Transport Type to `SSE` and enter `http://localhost:8787/sse` as the URL of the MCP server to connect to, and click "Connect"
-- You will navigate to a (mock) user/password login screen. Input any email and pass to login.
-- You should be redirected back to the MCP Inspector and you can now list and call any defined tools!
+在 Cloudflare Pages/本地设置以下变量：
+- API_TOKENS：逗号分隔的 Token 列表，例如 token1,token2（用于 /invoke 与 /mcp/invoke 鉴权）
+- SUPABASE_URL（可选，预留）
+- SUPABASE_SERVICE_ROLE_KEY（可选，预留）
+- SEARXNG_URL（可选，默认见 src/utils/env-config.ts）
 
-<div align="center">
-  <img src="img/mcp-inspector-sse-config.png" alt="MCP Inspector with the above config" width="600"/>
-</div>
+本地可用 .dev.vars 或系统环境变量注入。未配置 API_TOKENS 时，受保护接口返回 401 config_missing。
 
-<div align="center">
-  <img src="img/mcp-inspector-successful-tool-call.png" alt="MCP Inspector with after a tool call" width="600"/>
-</div>
+## 接口文档
 
-## Connect Claude Desktop to your local MCP server
-
-The MCP inspector is great, but we really want to connect this to Claude! Follow [Anthropic's Quickstart](https://modelcontextprotocol.io/quickstart/user) and within Claude Desktop go to Settings > Developer > Edit Config to find your configuration file.
-
-Open the file in your text editor and replace it with this configuration:
-
+通用错误结构
 ```json
-{
-  "mcpServers": {
-    "math": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://localhost:8787/sse"
-      ]
-    }
+{ "error": { "code": "string", "message": "string", "details": {} } }
+```
+
+错误码约定
+- config_missing：未配置必要环境变量（如 API_TOKENS）
+- unauthorized：缺少或无效的 Token
+- invalid_json：请求体不是有效 JSON
+- invalid_argument：必要字段缺失或类型不合法
+- tool_not_found：请求的工具不存在
+
+路由一览
+- GET /health
+  - 返回示例：
+    ```json
+    { "ok": true, "name": "workers-mcp", "runtime": "cloudflare-pages", "time": "ISO", "tools": 4 }
+    ```
+- GET /tools
+  - 返回工具数组，含 name/description/schema（原始 zod 字段映射）
+- GET /tools/:name
+  - 返回单个工具元数据；不存在时 404 tool_not_found
+- GET /mcp/tools
+  - 返回 MCP 风格清单：name/description/input_schema（基于 zod 的简化 JSON Schema）
+- POST /invoke（需要 Token）
+  - Header：Authorization: Bearer YOUR_TOKEN 或 x-api-key: YOUR_TOKEN
+  - Body：
+    ```json
+    { "name": "tool_name", "args": { "k": "v" } }
+    ```
+  - 成功返回工具的执行结果：
+    ```json
+    { "content": [ { "type": "text", "text": "..." } ] }
+    ```
+  - 失败返回 4xx + 统一错误结构
+- POST /mcp/invoke（需要 Token）
+  - Header：Authorization: Bearer YOUR_TOKEN 或 x-api-key: YOUR_TOKEN
+  - Body（两种兼容形态，等价）：
+    ```json
+    { "name": "tool_name", "arguments": { "k": "v" } }
+    ```
+    或
+    ```json
+    { "name": "tool_name", "args": { "k": "v" } }
+    ```
+  - 返回结构与 /invoke 相同（content 数组；失败返回统一错误结构）
+
+示例（使用 curl）
+```bash
+# /invoke 示例
+TOKEN=YOUR_TOKEN
+curl -X POST \
+  "$(printf "%s" "http://localhost:8788/invoke")" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"add","args":{"a":1,"b":2}}'
+
+# /mcp/invoke 示例（使用 "arguments" 字段）
+TOKEN=YOUR_TOKEN
+curl -X POST \
+  "$(printf "%s" "http://localhost:8788/mcp/invoke")" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"add","arguments":{"a":3,"b":4}}'
+```
+
+## 工具系统
+
+基础类位于 src/utils/tools.ts：
+- Tool 基类：name、description、schema（zod 字段映射），execute(args) 返回 { content, isError? }
+- ToolRegistry：注册/查询/执行工具
+
+工具实现位于 src/tools/*，例如加法工具：
+```ts
+export class AddTool extends Tool {
+  constructor() {
+    super('add','将两个数字相加',{ a: z.number(), b: z.number() });
   }
+  async execute(args: { a:number; b:number }) { /* ... */ }
 }
 ```
 
-This will run a local proxy and let Claude talk to your MCP server over HTTP
+动态注册
+- 构建期脚本：scripts/generate-tools-manifest.cjs 扫描 src/tools 下导出的 “export class Xxx extends Tool”，生成 src/tools/manifest.ts
+- 运行期：functions/[[path]].ts 首次请求时读取 toolConstructors，逐个实例化并注册
+- 命令：npm run gen:tools（在 dev/deploy/start 前会自动执行）
 
-When you open Claude a browser window should open and allow you to login. You should see the tools available in the bottom right. Given the right prompt Claude should ask to call the tool.
+## 前端
 
-<div align="center">
-  <img src="img/available-tools.png" alt="Clicking on the hammer icon shows a list of available tools" width="600"/>
-</div>
+- index.html + static/app.js（无外部依赖）
+- 加载 /mcp/tools 渲染工具网格、搜索和示例抽屉
+- 不直接发起 /invoke（避免 Token 暴露），仅给出 curl 示例
 
-<div align="center">
-  <img src="img/claude-does-math-the-fancy-way.png" alt="Claude answers the prompt 'I seem to have lost my calculator and have run out of fingers. Could you use the math tool to add 23 and 19?' by invoking the MCP add tool" width="600"/>
-</div>
+## 部署到 Cloudflare Pages
 
-## Deploy to Cloudflare
-
-1. `npx wrangler kv namespace create OAUTH_KV`
-2. Follow the guidance to add the kv namespace ID to `wrangler.jsonc`
-3. `npm run deploy`
-
-## Call your newly deployed remote MCP server from a remote MCP client
-
-Just like you did above in "Develop locally", run the MCP inspector:
-
-`npx @modelcontextprotocol/inspector@latest`
-
-Then enter the `workers.dev` URL (ex: `worker-name.account-name.workers.dev/sse`) of your Worker in the inspector as the URL of the MCP server to connect to, and click "Connect".
-
-You've now connected to your MCP server from a remote MCP client.
-
-## Connect Claude Desktop to your remote MCP server
-
-Update the Claude configuration file to point to your `workers.dev` URL (ex: `worker-name.account-name.workers.dev/sse`) and restart Claude 
-
-```json
-{
-  "mcpServers": {
-    "math": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://worker-name.account-name.workers.dev/sse"
-      ]
-    }
-  }
-}
-```
-
-## Debugging
-
-Should anything go wrong it can be helpful to restart Claude, or to try connecting directly to your
-MCP server on the command line with the following command.
-
+方式一：命令行
 ```bash
-npx mcp-remote http://localhost:8787/sse
+# 首次需 wrangler login
+npm run gen:tools
+wrangler pages deploy .
 ```
 
-In some rare cases it may help to clear the files added to `~/.mcp-auth`
+方式二：Pages 控制台
+- 创建项目，连接仓库或上传构建产物
+- Functions 目录自动识别为 functions/
+- 设置环境变量：API_TOKENS=token1,token2（以及可选 Supabase 变量）
+- 部署后访问 Pages 域名（首页、/health、/tools 等）
 
-```bash
-rm -rf ~/.mcp-auth
-```
+## 兼容性与规划
+
+- 认证：仅 Token 鉴权；多 Token 支持；多租/审计留作后续扩展
+- 存储：优先 Supabase（自建），通过 StorageAdapter/Factory 抽象支持多实现（占位中）
+- MCP：已提供 /mcp/tools 与 /mcp/invoke（最小兼容）；后续将逐步对齐协议细节
+- 迁移：保留横向迁移能力（Vercel/Deno/Supabase）
+
+## 许可
+
+MIT（如无特别声明）

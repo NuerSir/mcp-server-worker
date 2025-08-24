@@ -1,0 +1,90 @@
+# workers-mcp（Cloudflare Pages Functions）迁移与重构计划
+
+## Core Features
+
+- 迁移至 Cloudflare Pages Functions，保持接口等价
+
+- 工具动态发现与注册：构建期生成 manifest，运行期只读分发
+
+- .env 环境变量化（本地 .env/.dev.vars，云端环境变量），兼容 Deno/Node/CF Bindings
+
+- 鉴权：静态环境变量多 Token（Authorization: Bearer / x-api-key），后续可切换 Supabase
+
+- 存储抽象：StorageFactory + Supabase 适配器（占位），默认 memory 实现
+
+- 前端：仅首页工具清单 + 示例抽屉，无详情页，无外部依赖
+
+- MCP 协议兼容响应评估与对齐（工具元数据/入参 Schema/调用结果）
+
+- 性能监控与请求ID中间件，记录基础指标并可插拔
+
+- 项目命名与元数据统一为 workers-mcp
+
+- 文档：README 已包含 /mcp/invoke 使用说明与示例
+
+## Tech Stack
+
+{
+  "Web": {
+    "arch": "html",
+    "component": null
+  },
+  "iOS": "",
+  "Android": ""
+}
+
+## Design
+
+极简深色风，仅首页响应式网格与示例抽屉，纯 CSS/TS。
+
+## Plan
+
+Note: 
+
+- [ ] is holding
+- [/] is doing
+- [X] is done
+
+---
+
+[X] 创建 functions/entry，初始化路由与 /health 接口，回传运行环境与版本
+
+[X] 抽离请求上下文与绑定适配层，统一 Env/Bindings 访问
+
+[X] 定义 Tool 接口与元数据类型（id、name、desc、tags、status、schema、run）
+
+[X] 实现一个示例工具并保留原有工具的适配包装
+
+[X] 编写构建脚本扫描 src/tools 生成 src/tools/manifest.ts 与注册表
+
+[X] 在运行期加载注册表，提供 list/get/dispatch 工具服务
+
+[X] 实现 /tools 列表与 /tools/:id 元数据接口
+
+[X] 实现 /invoke 路由，参数校验与错误码规范化
+
+[X] 实现 API Token 中间件，支持静态与主存校验，接入受保护路由
+
+[X] 定义 StorageAdapter 接口与 StorageFactory
+
+[X] 实现 Memory 适配器（开发/测试）
+
+[X] 实现 Supabase 适配器（get/set/list/del/signedUrl/事务占位）
+
+[X] 提供 R2/VercelKV/DenoKV 适配器骨架与类型占位
+
+[X] 加入性能计时与请求ID中间件，记录基础指标并可插拔
+
+[X] 实现首页静态页：搜索、筛选、工具卡片、示例抽屉（纯 HTML/CSS/TS）
+
+[X] 编写前端数据层，调用 /tools 与 /invoke，渲染空态/加载态/错误态
+
+[X] 添加配置读取与校验（环境变量/主存配置），启动时输出缺失项
+
+[X] 迁移旧 Workers 处理器到新路由下的等价实现，保留兼容映射
+
+[X] 清理与分层重构目录：functions、src/tools、src/core、scripts、static
+
+[X] 项目元数据改名为 workers-mcp（package.json/README/文档）
+
+[X] MCP 协议兼容路由（/mcp/tools 与 /mcp/invoke）评估与占位

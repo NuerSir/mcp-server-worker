@@ -27,12 +27,32 @@ export class ToolRegistry {
         this.tools.set(tool.name, tool);
     }
 
+    unregisterTool(name: string): boolean {
+        return this.tools.delete(name);
+    }
+
+    clearAllTools(): void {
+        this.tools.clear();
+    }
+
     getTool(name: string): Tool | undefined {
         return this.tools.get(name);
     }
 
     getAllTools(): Tool[] {
         return Array.from(this.tools.values());
+    }
+
+    getToolNames(): string[] {
+        return Array.from(this.tools.keys());
+    }
+
+    hasTools(): boolean {
+        return this.tools.size > 0;
+    }
+
+    getToolCount(): number {
+        return this.tools.size;
     }
 
     async executeTool(name: string, args: any): Promise<{

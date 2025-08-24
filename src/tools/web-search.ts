@@ -2,7 +2,19 @@ import { z } from 'zod';
 import { Tool } from '../utils/tools';
 import { getEnvironmentConfig } from '../utils/env-config';
 
-// Web 搜索工具实现
+/**
+ * Web 搜索工具（WebSearchTool）
+ *
+ * 功能：
+ * - 基于 SearXNG 接口进行网页搜索，适合通用查询、新闻、文章与在线内容检索
+ *
+ * 入参 Schema（zod）：
+ * - query: 搜索关键词（必填）
+ * - pageno: 页码（从 1 起）
+ * - time_range: 时间范围（'day' | 'month' | 'year'）
+ * - language: 语言代码（如 'en'、'fr'、'de'），默认 'all'
+ * - safesearch: 安全搜索级别（'0' 无、'1' 中等、'2' 严格）
+ */
 export class WebSearchTool extends Tool {
     constructor() {
         super(
@@ -19,6 +31,16 @@ export class WebSearchTool extends Tool {
         );
     }
 
+    /**
+     * 执行网页搜索
+     * @param args 入参对象
+     * @param args.query 搜索关键词
+     * @param args.pageno 搜索页码（默认 1）
+     * @param args.time_range 时间范围（可选：'day' | 'month' | 'year'）
+     * @param args.language 语言代码（默认 'all'）
+     * @param args.safesearch 安全搜索级别（'0' | '1' | '2'，默认 '0'）
+     * @returns 执行结果；成功时 content[0].text 返回拼接的搜索结果文本
+     */
     async execute(args: {
         query: string;
         pageno?: number;
@@ -58,6 +80,16 @@ export class WebSearchTool extends Tool {
         }
     }
 
+    /**
+     * 调用 SearXNG 完成搜索请求
+     * @param query 搜索关键词
+     * @param pageno 页码（默认 1）
+     * @param time_range 时间范围（可选）
+     * @param language 语言代码（默认 'all'）
+     * @param safesearch 安全搜索级别（'0' | '1' | '2'，默认 '0'）
+     * @throws 当 HTTP 状态非 2xx 时抛出错误
+     * @returns 将搜索结果转换为纯文本的字符串
+     */
     private async performWebSearch(
         query: string,
         pageno: number = 1,

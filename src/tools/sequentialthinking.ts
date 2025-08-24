@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { Tool } from '../utils/tools';
 
+/**
+ * 思维步骤数据结构（ThoughtData）
+ * - 描述单次思维步骤及其与历史/分支的关系
+ * 字段说明：
+ * - thought: 当前思维内容
+ * - thoughtNumber: 当前步骤序号（从 1 起）
+ * - totalThoughts: 估计所需总步数（可动态调整）
+ * - isRevision: 是否为对以往思维的修订
+ * - revisesThought: 若为修订，指定被修订的步骤号
+ * - branchFromThought: 若发生分支，指定分支点步骤号
+ * - branchId: 分支标识
+ * - needsMoreThoughts: 是否需要更多思考
+ * - nextThoughtNeeded: 下一步是否需要继续
+ */
 interface ThoughtData {
     thought: string;
     thoughtNumber: number;
@@ -13,10 +27,21 @@ interface ThoughtData {
     nextThoughtNeeded: boolean;
 }
 
+/**
+ * 思维过程服务（SequentialThinkingServer）
+ * - 负责：入参校验、历史与分支管理、产出下一步提示
+ * - 内部状态：thoughtHistory、branches
+ */
 class SequentialThinkingServer {
     private thoughtHistory: ThoughtData[] = [];
     private branches: Record<string, ThoughtData[]> = {};
 
+    /**
+     * 校验与规范化入参
+     * @param input 未经校验的入参对象
+     * @throws 当必填字段缺失或类型不匹配时抛出错误
+     * @returns 标准化后的 ThoughtData
+     */
     private validateThoughtData(input: unknown): ThoughtData {
         const data = input as Record<string, unknown>;
 
@@ -46,6 +71,12 @@ class SequentialThinkingServer {
         };
     }
 
+    /**
+     * 处理思维步骤
+     * - 校验入参、更新历史/分支、生成下一步提示信息
+     * @param input 入参对象
+     * @returns MCP 风格的结果对象（content 数组；错误时附 isError）
+     */
     public processThought(input: unknown): { content: Array<{ type: string; text: string }>; isError?: boolean } {
         try {
             const validatedInput = this.validateThoughtData(input);
@@ -97,6 +128,23 @@ class SequentialThinkingServer {
     }
 }
 
+/**
+ * SequentialThinking 工具
+ *
+ * 功能：
+ * - 支持多步、可分支、可修订的思维过程组织与反馈
+ *
+ * 入参 Schema（zod）：
+ * - thought: 当前思维内容
+ * - nextThoughtNeeded: 是否需要下一步
+ * - thoughtNumber: 当前步骤序号（>=1）
+ * - totalThoughts: 预计总步数（>=1，可调整）
+ * - isRevision: 是否为修订
+ * - revisesThought: 若修订，指定被修订的步骤号
+ * - branchFromThought: 若分支，指定分支点步骤号
+ * - branchId: 分支标识
+ * - needsMoreThoughts: 是否需要更多思考
+ */
 export class SequentialThinkingTool extends Tool {
     private server = new SequentialThinkingServer();
 
@@ -173,6 +221,11 @@ export class SequentialThinkingTool extends Tool {
         );
     }
 
+    /**
+     * 执行工具入口
+     * @param args 入参对象（不做类型断言，交由服务内部校验）
+     * @returns 执行结果，包含 content 与可选 isError
+     */
     async execute(args: Record<string, unknown>) {
         return this.server.processThought(args);
     }

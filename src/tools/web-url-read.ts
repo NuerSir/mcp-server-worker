@@ -2,7 +2,15 @@ import { z } from 'zod';
 import { Tool } from '../utils/tools';
 import { getEnvironmentConfig } from '../utils/env-config';
 
-// Web URL 阅读工具实现
+/**
+ * Web URL 阅读工具（WebUrlReadTool）
+ *
+ * 功能：
+ * - 读取指定 URL 的内容并做简要文本化处理（移除脚本/样式，压缩空白）
+ *
+ * 入参 Schema（zod）：
+ * - url: 需要读取的 URL
+ */
 export class WebUrlReadTool extends Tool {
     constructor() {
         super(
@@ -15,6 +23,12 @@ export class WebUrlReadTool extends Tool {
         );
     }
 
+    /**
+     * 执行 URL 读取
+     * @param args 入参对象
+     * @param args.url 目标 URL
+     * @returns 执行结果；成功时 content[0].text 为提取后的纯文本
+     */
     async execute(args: { url: string }) {
         try {
             const { url } = args;
@@ -35,6 +49,13 @@ export class WebUrlReadTool extends Tool {
         }
     }
 
+    /**
+     * 拉取并处理 URL 内容
+     * - 通过 AbortController 实现超时控制（阈值来自环境配置）
+     * @param url 目标 URL
+     * @throws 超时或响应非 OK 时抛出错误
+     * @returns 处理后的纯文本
+     */
     private async fetchAndProcess(url: string) {
         // 从环境配置获取超时设置
         const { TOOL_TIMEOUT_MS } = getEnvironmentConfig();
@@ -73,6 +94,13 @@ export class WebUrlReadTool extends Tool {
         }
     }
 
+    /**
+     * 简单的 HTML 转纯文本方法
+     * - 移除脚本与样式标签、压缩多余空白、基本实体解码
+     * - 注意：该实现较为简化，不覆盖所有 HTML 情况
+     * @param html HTML 字符串
+     * @returns 纯文本
+     */
     private simpleHtmlToText(html: string): string {
         // 非常简单的 HTML 到文本转换
         // 移除所有 HTML 标签并保留文本内容
