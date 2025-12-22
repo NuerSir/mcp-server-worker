@@ -13,7 +13,7 @@ cd ai
 npm install
 
 # run locally
-npx nx dev remote-mcp-server
+npx nx dev worker-mcp
 ```
 
 You should be able to open [`http://localhost:8787/`](http://localhost:8787/) in your browser
@@ -69,7 +69,7 @@ When you open Claude a browser window should open and allow you to login. You sh
 
 ## Deploy to Cloudflare
 
-1. `npx wrangler@latest kv namespace create remote-mcp-server-oauth-kv`
+1. `npx wrangler@latest kv namespace create worker-mcp-oauth-kv`
 2. Follow the guidance to add the kv namespace ID to `wrangler.jsonc`
 3. `npm run deploy`
 

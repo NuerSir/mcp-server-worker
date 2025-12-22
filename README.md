@@ -13,7 +13,7 @@ cd ai
 npm install
 
 # run locally
-npx nx dev remote-mcp-server
+npx nx dev worker-mcp
 ```
 
 You should be able to open [`http://localhost:8787/`](http://localhost:8787/) in your browser

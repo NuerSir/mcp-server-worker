@@ -1,5 +1,5 @@
 {
-	"name": "remote-mcp-server",
+	"name": "worker-mcp",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {

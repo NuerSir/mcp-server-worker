@@ -1,0 +1,87 @@
+$:
+  # push 事件 - 推送代码时同步到 GitHub
+  push:
+    - services:
+        - docker
+      docker:
+        volumes:
+          - /data/codewiki/${CNB_REPO_SLUG}:data
+      imports:
+        - https://cnb.cool/${CNB_GROUP_SLUG}/envs/-/blob/main/env.yml
+      stages:
+        - name: 同步到 GitHub
+          image: alpine/git:latest
+          script: |
+            echo "开始同步到 GitHub..."
+
+            # 配置 Git 用户信息
+            git config --global user.name "${GITHUB_NUER_USER_NAME:-CNB Bot}"
+            git config --global user.email "${GITHUB_NUER_USER_EMAIL:-bot@cnb.cool}"
+
+            # 添加 GitHub 远程仓库（使用环境变量）
+            # 注意：需要在 CNB 环境变量中配置 GITHUB_NUER_TOKEN
+            if [ -n "$GITHUB_NUER_TOKEN" ]; then
+              git remote add github https://${GITHUB_NUER_TOKEN}@github.com/nuersir/mcp-server-worker.gitmcp-server-worker.git || echo "GitHub remote already exists"
+              echo "已添加 GitHub 远程仓库: nuersir/mcp-server-worker"
+            else
+              echo "❌ 错误：未设置 GITHUB_NUER_TOKEN 环境变量"
+              exit 1
+            fi
+
+            # 获取当前分支名
+            CURRENT_BRANCH=${CNB_COMMIT_REF}
+            echo "当前分支: $CURRENT_BRANCH"
+
+            # 推送当前分支到 GitHub
+            echo "正在推送分支 $CURRENT_BRANCH 到 GitHub..."
+            git push github $CURRENT_BRANCH
+
+            echo "✅ 分支 $CURRENT_BRANCH 同步到 GitHub 完成！"
+
+  # tag_push 事件 - 创建标签时同步到 GitHub
+  tag_push:
+    - services:
+        - docker
+      docker:
+        volumes:
+          - /data/codewiki/${CNB_REPO_SLUG}:data
+      imports:
+        - https://cnb.cool/${CNB_GROUP_SLUG}/envs/-/blob/main/env.yml
+      stages:
+        - name: 同步标签到 GitHub
+          image: alpine/git:latest
+          script: |
+            echo "开始同步标签到 GitHub..."
+
+            # 配置 Git 用户信息
+            git config --global user.name "${GITHUB_NUER_USER_NAME:-CNB Bot}"
+            git config --global user.email "${GITHUB_NUER_USER_EMAIL:-bot@cnb.cool}"
+
+            # 添加 GitHub 远程仓库
+            if [ -n "$GITHUB_NUER_TOKEN" ]; then
+              git remote add github https://${GITHUB_NUER_TOKEN}@github.com/nuersir/mcp-server-worker.git || echo "GitHub remote already exists"
+              echo "已添加 GitHub 远程仓库: nuersir/mcp-server-worker"
+            else
+              echo "❌ 错误：未设置 GITHUB_NUER_TOKEN 环境变量"
+              exit 1
+            fi
+
+            # 推送所有标签到 GitHub
+            echo "正在推送标签到 GitHub..."
+            git push github --tags
+
+            echo "✅ 标签同步到 GitHub 完成！"
+
+  vscode:
+    - runner:
+        cpus: 2
+        image: node:22
+      services:
+        - vscode
+        - docker
+      docker:
+        volumes:
+          - /data/codewiki/${CNB_REPO_SLUG}:data
+      stages:
+        - name: 开发环境
+          script: echo "Node.js 22 开发环境已启动"
