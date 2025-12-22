@@ -21,7 +21,7 @@ $:
             # 添加 GitHub 远程仓库（使用环境变量）
             # 注意：需要在 CNB 环境变量中配置 GITHUB_NUER_TOKEN
             if [ -n "$GITHUB_NUER_TOKEN" ]; then
-              git remote add github https://${GITHUB_NUER_TOKEN}@github.com/nuersir/mcp-server-worker.gitmcp-server-worker.git || echo "GitHub remote already exists"
+              git remote add github https://${GITHUB_NUER_TOKEN}@github.com/nuersir/mcp-server-worker.git || echo "GitHub remote already exists"
               echo "已添加 GitHub 远程仓库: nuersir/mcp-server-worker"
             else
               echo "❌ 错误：未设置 GITHUB_NUER_TOKEN 环境变量"
