@@ -1,12 +1,10 @@
-import { z } from 'zod';
-
 // 工具基类，提供通用功能和结构
 export abstract class Tool {
     constructor(
         public readonly name: string,
         public readonly description: string,
         public readonly schema: Record<string, any> // 修改为支持直接的属性映射
-    ) {}
+    ) { }
 
     abstract execute(args: any): Promise<{
         content: Array<{ type: string, text: string }>;
@@ -18,7 +16,6 @@ export abstract class Tool {
 export class ToolRegistry {
     private tools: Map<string, Tool> = new Map();
 
-    constructor() {}
 
     registerTool(tool: Tool): void {
         if (this.tools.has(tool.name)) {

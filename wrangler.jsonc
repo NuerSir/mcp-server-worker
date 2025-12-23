@@ -7,10 +7,14 @@
 	"name": "worker-mcp",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-03-10",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"migrations": [
 		{
-			"new_sqlite_classes": ["MyMCP"],
+			"new_sqlite_classes": [
+				"MyMCP"
+			],
 			"tag": "v1"
 		}
 	],
@@ -22,14 +26,11 @@
 			}
 		]
 	},
-	"kv_namespaces": [
-		{
-			"binding": "OAUTH_KV",
-			"id": "332c7059bb1d4c67a7c4e0b2c7a9632d"
-		}
-	],
 	"observability": {
 		"enabled": true
 	},
-	"assets": { "directory": "./static/", "binding": "ASSETS" }
+	"assets": {
+		"directory": "./static/",
+		"binding": "ASSETS"
+	}
 }

@@ -65,7 +65,7 @@ class SequentialThinkingServer {
 
             const nextStepMessage = validatedInput.nextThoughtNeeded
                 ? `Next thought is needed. Please provide thought number ${validatedInput.thoughtNumber + 1}.`
-                : `No further thoughts are needed. The process is complete.`;
+                : "No further thoughts are needed. The process is complete.";
 
             return {
                 content: [

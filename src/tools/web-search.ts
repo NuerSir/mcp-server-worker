@@ -60,10 +60,10 @@ export class WebSearchTool extends Tool {
 
     private async performWebSearch(
         query: string,
-        pageno: number = 1,
+        pageno = 1,
         time_range?: string,
-        language: string = 'all',
-        safesearch: string = '0'
+        language = 'all',
+        safesearch = '0'
     ) {
         // 使用环境配置获取 SearXNG URL
         const { SEARXNG_URL } = getEnvironmentConfig();
