@@ -95,7 +95,7 @@ export const layout = (content: any, title: string) => html`
             loading: false,
             params: {},
             copySuccess: '',
-            sessionId: crypto.randomUUID(),
+            sessionId: null,
             clientInitialized: false,
             validationError: null,
             
@@ -106,14 +106,20 @@ export const layout = (content: any, title: string) => html`
             },
 
             async makeRequest(method, params = null, isNotification = false) {
+                 const headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/event-stream',
+                    ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
+                 };
+
+                 // Only add Session ID if we have one and it's not an initialize request
+                 if (this.sessionId && method !== 'initialize') {
+                     headers['Mcp-Session-Id'] = this.sessionId;
+                 }
+
                  const response = await fetch('/mcp', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json, text/event-stream',
-                        'Mcp-Session-Id': this.sessionId,
-                        ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
-                    },
+                    headers: headers,
                     body: JSON.stringify({
                         jsonrpc: '2.0',
                         method: method,
@@ -121,6 +127,13 @@ export const layout = (content: any, title: string) => html`
                         ...(isNotification ? {} : { id: Date.now() })
                     })
                 });
+
+                // Capture Session ID/Endpoint from response headers if provided
+                const newSessionId = response.headers.get('mcp-session-id');
+                if (newSessionId && !this.sessionId) {
+                    console.log('New Session Established:', newSessionId);
+                    this.sessionId = newSessionId;
+                }
                 
                 if (!response.ok) {
                     const text = await response.text();
@@ -193,11 +206,9 @@ export const layout = (content: any, title: string) => html`
 
                 } catch (e) {
                     this.result = { error: e.message };
-                    // If 404/Session Not Found, reset init state
-                    if (e.message.includes('Session not found')) {
-                        this.clientInitialized = false;
-                        this.sessionId = crypto.randomUUID();
-                    }
+                    // On error, especially session related, reset state to force re-handshake
+                    this.clientInitialized = false;
+                    this.sessionId = null;
                 } finally {
                     this.loading = false;
                 }
