@@ -14,7 +14,7 @@ export const layout = (content: any, title: string) => html`
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
       
       <!-- Tailwind CSS -->
-      <script src="https://cdn.tailwindcss.com"></script>
+      <script src="/lib/tailwindcss.js"></script>
       <script>
         tailwind.config = {
           darkMode: 'class',
@@ -38,7 +38,7 @@ export const layout = (content: any, title: string) => html`
       </script>
 
       <!-- Alpine.js -->
-      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+      <script defer src="/lib/alpine.js"></script>
 
       <style>
         [x-cloak] { display: none !important; }
@@ -91,24 +91,28 @@ export const layout = (content: any, title: string) => html`
             search: '', 
             selectedTool: null, 
             isConfigOpen: false, 
-            apiKey: '',
+            apiKey: localStorage.getItem('mcp_api_key') || '',
             showApiKey: false,
             result: null,
             loading: false,
-            params: {},
-            copySuccess: '',
-            params: {},
             params: {},
             copySuccess: '',
             sessionId: crypto.randomUUID(),
             clientInitialized: false,
             validationError: null,
             
+            $watch: {
+                apiKey(value) {
+                    localStorage.setItem('mcp_api_key', value);
+                }
+            },
+
             async makeRequest(method, params = null, isNotification = false) {
                  const response = await fetch('/mcp', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json, text/event-stream',
                         'Mcp-Session-Id': this.sessionId,
                         ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
                     },
@@ -488,7 +492,7 @@ export const dashboard = (tools: Tool[]) => html`
                     <div class="space-y-4">
                         <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest">Authentication</label>
                         <div class="relative">
-                            <input x-model="apiKey" :type="showApiKey ? 'text' : 'password'" placeholder="Enter Server API Key" class="block w-full px-4 py-3 bg-surface/50 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all pr-12">
+                            <input x-model="apiKey" @blur="localStorage.setItem('mcp_api_key', apiKey)" :type="showApiKey ? 'text' : 'password'" placeholder="Enter Server API Key" class="block w-full px-4 py-3 bg-surface/50 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all pr-12">
                             <button @click="showApiKey = !showApiKey" class="absolute inset-y-0 right-0 px-3 flex items-center text-zinc-500 hover:text-white transition-colors">
                                 <svg x-show="!showApiKey" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
