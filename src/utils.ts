@@ -38,6 +38,32 @@ export const layout = (content: any, title: string) => html`
       <!-- Alpine.js -->
       <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
+      <!-- MCP SSE Parser -->
+      <script>
+        window.parseSSEResponse = async function(response) {
+          const text = await response.text();
+          const lines = text.split('\\n');
+          let lastResult = null;
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr && jsonStr !== '[DONE]') {
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  if (parsed.result !== undefined || parsed.error !== undefined || parsed.jsonrpc) {
+                    lastResult = parsed;
+                  }
+                } catch (e) {
+                  console.warn('SSE parse error:', e);
+                }
+              }
+            }
+          }
+          return lastResult;
+        };
+      </script>
+
       <style>
         [x-cloak] { display: none !important; }
         .glass {
@@ -117,15 +143,14 @@ export const layout = (content: any, title: string) => html`
                      headers['Mcp-Session-Id'] = this.sessionId;
                  }
 
-                 const requestId = Date.now();
-                 const response = await fetch('/mcp?transportType=streamable-http', {
+                 const response = await fetch('/mcp', {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify({
                         jsonrpc: '2.0',
                         method: method,
                         ...(params ? { params } : {}),
-                        ...(isNotification ? {} : { id: requestId })
+                        ...(isNotification ? {} : { id: Date.now() })
                     })
                 });
 
@@ -142,48 +167,14 @@ export const layout = (content: any, title: string) => html`
                 }
                 
                 if (isNotification) return null;
-
-                // Stream Processing for Streamable HTTP (SSE)
-                // The server returns Text/Event-Stream even for POST responses
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let result = null;
                 
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop() || ''; // Keep incomplete line
-                        
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                try {
-                                    const data = JSON.parse(line.slice(6));
-                                    // Check if this is the JSON-RPC response we are looking for
-                                    // Or if it's the result directly?
-                                    // MCP Agent usually wraps the message in an event or returns the raw JSON-RPC message in data
-                                    if (data.id === requestId || (data.result !== undefined) || (data.error !== undefined)) {
-                                        result = data;
-                                        // Once we found our result, we can stop reading?
-                                        // But we should be careful if there are multiple messages.
-                                        // For a simple request/response, the first one is usually it.
-                                        return result; 
-                                    }
-                                } catch (e) {
-                                    console.warn('Failed to parse SSE data:', line);
-                                }
-                            }
-                        }
-                    }
-                } finally {
-                    reader.cancel();
+                const ct = response.headers.get('Content-Type') || '';
+                if (ct.indexOf('text/event-stream') >= 0) {
+                  const parsed = await window.parseSSEResponse(response);
+                  if (parsed) return parsed;
+                  throw new Error('No valid response in SSE stream');
                 }
-
-                return result;
+                return await response.json();
             },
 
             validateParams() {
