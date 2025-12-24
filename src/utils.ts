@@ -97,6 +97,8 @@ export const layout = (content: any, title: string) => html`
             loading: false,
             params: {},
             copySuccess: '',
+            params: {},
+            copySuccess: '',
             // Session Management
             sseConnection: null,
             postEndpoint: null,
@@ -113,8 +115,6 @@ export const layout = (content: any, title: string) => html`
                     // Connect to SSE Endpoint to get Session ID/Endpoint
                     const sseUrl = new URL('/mcp', window.location.origin);
                     if (this.apiKey) sseUrl.searchParams.set('apiKey', this.apiKey);
-                    // Pass sessionId via query param since EventSource can't send headers
-                    sseUrl.searchParams.set('sessionId', this.sessionId);
                     
                     this.sseConnection = new EventSource(sseUrl.toString());
                     
