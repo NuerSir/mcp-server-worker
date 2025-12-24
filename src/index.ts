@@ -67,10 +67,25 @@ export default {
 
             // Create a new request based on the original one, but perform cleanups
             const newUrl = new URL(request.url);
+
+            // Handle Session ID: EventSource can't send headers, so we pass it in query and inject it as header here
+            const querySessionId = newUrl.searchParams.get("sessionId");
+            const newHeaders = new Headers(request.headers);
+
+            if (querySessionId) {
+                newHeaders.set("Mcp-Session-Id", querySessionId);
+                newUrl.searchParams.delete("sessionId");
+            }
+
             // Remove apiKey from the URL passed to MCP agent to avoid validation issues
             newUrl.searchParams.delete("apiKey");
 
-            const newRequest = new Request(newUrl.toString(), request);
+            const newRequest = new Request(newUrl.toString(), {
+                method: request.method,
+                headers: newHeaders,
+                body: request.body,
+                redirect: request.redirect
+            });
 
             try {
                 const response = await mcpHandler.fetch(newRequest, env, ctx);
