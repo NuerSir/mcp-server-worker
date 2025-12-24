@@ -61,6 +61,28 @@ export const layout = (content: any, title: string) => html`
             50% { transform: translateY(-10px); }
             100% { transform: translateY(0px); }
         }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        /* Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.02);
+        }
       </style>
     </head>
     <body 
@@ -83,7 +105,7 @@ export const layout = (content: any, title: string) => html`
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'text/event-stream', // Fix: McpAgent transport requires this or similar
+                            'Accept': 'application/json, text/event-stream', // Fix: McpAgent transport requires both
                             ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
                         },
                         body: JSON.stringify({
