@@ -36,7 +36,7 @@ export const layout = (content: any, title: string) => html`
       </script>
 
       <!-- Alpine.js -->
-      <script defer src="/lib/alpine.js"></script>
+      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
       <style>
         [x-cloak] { display: none !important; }
@@ -117,14 +117,15 @@ export const layout = (content: any, title: string) => html`
                      headers['Mcp-Session-Id'] = this.sessionId;
                  }
 
-                 const response = await fetch('/mcp', {
+                 const requestId = Date.now();
+                 const response = await fetch('/mcp?transportType=streamable-http', {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify({
                         jsonrpc: '2.0',
                         method: method,
                         ...(params ? { params } : {}),
-                        ...(isNotification ? {} : { id: Date.now() })
+                        ...(isNotification ? {} : { id: requestId })
                     })
                 });
 
@@ -141,7 +142,48 @@ export const layout = (content: any, title: string) => html`
                 }
                 
                 if (isNotification) return null;
-                return await response.json();
+
+                // Stream Processing for Streamable HTTP (SSE)
+                // The server returns Text/Event-Stream even for POST responses
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let result = null;
+                
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || ''; // Keep incomplete line
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    // Check if this is the JSON-RPC response we are looking for
+                                    // Or if it's the result directly?
+                                    // MCP Agent usually wraps the message in an event or returns the raw JSON-RPC message in data
+                                    if (data.id === requestId || (data.result !== undefined) || (data.error !== undefined)) {
+                                        result = data;
+                                        // Once we found our result, we can stop reading?
+                                        // But we should be careful if there are multiple messages.
+                                        // For a simple request/response, the first one is usually it.
+                                        return result; 
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse SSE data:', line);
+                                }
+                            }
+                        }
+                    }
+                } finally {
+                    reader.cancel();
+                }
+
+                return result;
             },
 
             validateParams() {
