@@ -53,7 +53,9 @@ export default {
             // If key is configured, check it.
             if (apiKey) {
                 const authHeader = request.headers.get("Authorization");
-                if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
+                const urlApiKey = url.searchParams.get("apiKey");
+
+                if ((!authHeader || authHeader !== `Bearer ${apiKey}`) && urlApiKey !== apiKey) {
                     return new Response("Unauthorized", { status: 401 });
                 }
             } else {

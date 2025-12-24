@@ -97,18 +97,88 @@ export const layout = (content: any, title: string) => html`
             loading: false,
             params: {},
             copySuccess: '',
-            sessionId: crypto.randomUUID(),
+            // Session Management
+            sseConnection: null,
+            postEndpoint: null,
+            sessionReady: false,
+            validationError: null,
             
+            async initSession() {
+                if (this.sessionReady && this.sseConnection) return true;
+                
+                return new Promise((resolve, reject) => {
+                    // Close existing if checking
+                    if (this.sseConnection) this.sseConnection.close();
+                    
+                    // Connect to SSE Endpoint to get Session ID/Endpoint
+                    const sseUrl = new URL('/mcp', window.location.origin);
+                    if (this.apiKey) sseUrl.searchParams.set('apiKey', this.apiKey);
+                    
+                    this.sseConnection = new EventSource(sseUrl.toString());
+                    
+                    this.sseConnection.onopen = () => {
+                        console.log('SSE Connected');
+                    };
+                    
+                    this.sseConnection.addEventListener('endpoint', (event) => {
+                         console.log('Received endpoint:', event.data);
+                         // event.data contains the relative or absolute path for POST
+                         // It usually includes the session ID (e.g. /mcp?sessionId=...)
+                         this.postEndpoint = event.data;
+                         this.sessionReady = true;
+                         resolve(true);
+                    });
+                    
+                    this.sseConnection.onerror = (err) => {
+                        console.error('SSE Error:', err);
+                        this.sseConnection.close();
+                        this.sessionReady = false;
+                        reject(new Error('Failed to connect to MCP server. Check API Key.'));
+                    };
+                });
+            },
+
+            validateParams() {
+                 this.validationError = null;
+                 if (!this.selectedTool?.schema?.required) return true;
+                 
+                 const missing = [];
+                 for (const field of this.selectedTool.schema.required) {
+                     if (!this.params[field] || this.params[field].trim() === '') {
+                         missing.push(field);
+                     }
+                 }
+                 
+                 if (missing.length > 0) {
+                     this.validationError = 'Missing required parameters: ' + missing.join(', ');
+                     return false;
+                 }
+                 return true;
+            },
+
             async runTool() {
+                // 1. Validation
+                if (!this.validateParams()) return;
+
                 this.loading = true;
                 this.result = null;
+                
                 try {
-                    const response = await fetch('/mcp', {
+                    // 2. Ensure Session
+                    if (!this.sessionReady) {
+                        await this.initSession();
+                    }
+                    
+                    // 3. Construct URL
+                    // If endpoint is relative, make it absolute? It usually comes as /mcp?sessionId=...
+                    const fetchUrl = this.postEndpoint ? this.postEndpoint : '/mcp';
+                    
+                    console.log('Posting to:', fetchUrl);
+
+                    const response = await fetch(fetchUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json, text/event-stream', // Fix: McpAgent transport requires both
-                            'Mcp-Session-Id': this.sessionId,
                             ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
                         },
                         body: JSON.stringify({
@@ -137,6 +207,9 @@ export const layout = (content: any, title: string) => html`
                     }
                 } catch (e) {
                     this.result = { error: e.message };
+                    // Reset session on error to force reconnect next time
+                    this.sessionReady = false;
+                    if(this.sseConnection) this.sseConnection.close();
                 } finally {
                     this.loading = false;
                 }
@@ -444,6 +517,12 @@ export const dashboard = (tools: Tool[]) => html`
 
                     <!-- Params Form -->
                     <div class="space-y-6">
+                        <!-- Validation Error -->
+                        <div x-show="validationError" class="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2" style="display: none;">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span x-text="validationError"></span>
+                        </div>
+
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
                              <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest">Input Parameters</label>
                              <span class="text-xs text-zinc-600 font-mono bg-white/5 px-2 py-0.5 rounded">JSON Schema</span>
