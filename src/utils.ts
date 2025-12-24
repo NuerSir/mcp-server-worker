@@ -83,6 +83,7 @@ export const layout = (content: any, title: string) => html`
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Accept': 'text/event-stream', // Fix: McpAgent transport requires this or similar
                             ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
                         },
                         body: JSON.stringify({
@@ -163,7 +164,7 @@ export const layout = (content: any, title: string) => html`
       </nav>
 
       <!-- Main Content -->
-      <main class="flex-grow relative pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10">
+      <main class="flex-grow relative pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto w-full z-10">
         <!-- Ambient Background Effects -->
         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-primary/20 blur-[120px] rounded-full -z-10 pointer-events-none mix-blend-screen"></div>
         <div class="absolute top-40 right-0 w-96 h-96 bg-secondary/10 blur-[100px] rounded-full -z-10 pointer-events-none"></div>
@@ -193,7 +194,7 @@ export const dashboard = (tools: Tool[]) => html`
             <span>for your AI Models</span>
         </h1>
         <p class="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            A high-performance MCP server running on the edge. seamlessley bridging your local setup with powerful cloud tools.
+            A high-performance MCP server running on the edge, seamlessly bridging your local setup with powerful cloud tools.
         </p>
         
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -221,11 +222,10 @@ export const dashboard = (tools: Tool[]) => html`
                 <div class="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Latency</div>
             </div>
          </div>
-         <!-- Search moved to header, removed from here -->
     </div>
 
     <!-- Tool Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         ${tools.map((tool) => raw(`
             <div 
                 class="glass rounded-2xl p-6 hover:border-primary/30 transition-all duration-300 group cursor-pointer flex flex-col h-full"
@@ -267,7 +267,7 @@ export const dashboard = (tools: Tool[]) => html`
         x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="opacity-100 backdrop-blur-sm"
         x-transition:leave-end="opacity-0 backdrop-blur-none"
-        class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
         style="display: none;"
     >
         <div 
@@ -356,12 +356,12 @@ export const dashboard = (tools: Tool[]) => html`
     <!-- Playground Slide-over -->
     <div 
         x-show="selectedTool" 
-        class="fixed inset-0 z-[70] overflow-hidden" 
+        class="fixed inset-0 z-[100] overflow-hidden" 
         style="display: none;"
     >
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" @click="selectedTool = null"></div>
         
-        <div class="absolute inset-y-0 right-0 max-w-xl w-full flex">
+        <div class="absolute inset-y-0 right-0 max-w-2xl w-full flex">
             <div 
                 x-show="selectedTool"
                 x-transition:enter="transform transition ease-in-out duration-300"
@@ -373,83 +373,106 @@ export const dashboard = (tools: Tool[]) => html`
                 class="w-full bg-[#0f0f11] border-l border-white/10 shadow-2xl flex flex-col h-full"
             >
                 <!-- Header -->
-                <div class="px-6 py-6 border-b border-white/5 flex items-start justify-between bg-surface/50">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                             <div class="w-6 h-6 rounded bg-primary/20 flex items-center justify-center text-xs font-bold text-primary" x-text="selectedTool?.name.substring(0,2).toUpperCase()"></div>
-                             <h2 class="text-lg font-bold text-white" x-text="selectedTool?.name"></h2>
+                <div class="px-8 py-6 border-b border-white/5 flex items-start justify-between bg-surface/50 shadow-sm">
+                    <div class="flex-1 mr-8">
+                        <div class="flex items-center gap-3 mb-3">
+                             <div class="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center text-lg font-bold text-primary" x-text="selectedTool?.name.substring(0,2).toUpperCase()"></div>
+                             <h2 class="text-2xl font-bold text-white tracking-tight" x-text="selectedTool?.name"></h2>
+                             <span class="px-2 py-0.5 rounded-full bg-white/5 text-xs font-mono text-zinc-500 border border-white/5">TOOL</span>
                         </div>
-                        <p class="text-sm text-zinc-400" x-text="selectedTool?.description"></p>
+                        <!-- Description Box -->
+                        <div class="max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                           <p class="text-sm text-zinc-400 whitespace-pre-wrap leading-relaxed" x-text="selectedTool?.description"></p>
+                        </div>
                     </div>
-                    <button @click="selectedTool = null" class="text-zinc-500 hover:text-white">
+                    <button @click="selectedTool = null" class="p-2 rounded-lg hover:bg-white/5 text-zinc-500 hover:text-white transition-colors">
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
                 <!-- Body -->
-                <div class="flex-1 overflow-y-auto p-6 space-y-8">
+                <div class="flex-1 overflow-y-auto p-8 space-y-10">
                     
                     <!-- Auth -->
-                    <div class="space-y-4 p-4 rounded-xl bg-surface border border-white/5">
-                        <label class="block text-xs font-medium text-zinc-400 uppercase tracking-wider">Authentication</label>
-                        <input x-model="apiKey" type="password" placeholder="Enter Server API Key" class="block w-full px-4 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors">
-                        <p class="text-xs text-zinc-600">Your key is used only for this session and request.</p>
+                    <div class="space-y-4">
+                        <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest">Authentication</label>
+                        <div class="relative">
+                            <input x-model="apiKey" type="password" placeholder="Enter Server API Key" class="block w-full px-4 py-3 bg-surface/50 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all">
+                        </div>
                     </div>
 
                     <!-- Params Form -->
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                             <label class="block text-xs font-medium text-zinc-400 uppercase tracking-wider">Parameters</label>
-                             <span class="text-xs text-zinc-600 font-mono">JSON Schema</span>
+                    <div class="space-y-6">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                             <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest">Input Parameters</label>
+                             <span class="text-xs text-zinc-600 font-mono bg-white/5 px-2 py-0.5 rounded">JSON Schema</span>
                         </div>
                         
-                        <div class="space-y-4">
+                        <div class="space-y-6">
                             <template x-for="(prop, key) in (selectedTool?.schema?.shape || selectedTool?.schema?.properties || {})" :key="key">
-                                <div>
-                                    <label class="block text-sm font-medium text-zinc-300 mb-1">
-                                        <span x-text="key"></span>
-                                        <span x-show="selectedTool?.schema?.required?.includes(key)" class="text-red-500">*</span>
+                                <div class="group">
+                                    <label class="block text-sm font-medium text-zinc-300 mb-2 flex items-center justify-between">
+                                        <div class="flex items-center gap-1">
+                                            <span x-text="key" class="font-mono text-primary/90"></span>
+                                            <span x-show="selectedTool?.schema?.required?.includes(key)" class="text-red-500 text-xs" title="Required">*</span>
+                                        </div>
+                                        <span class="text-xs text-zinc-600 font-normal" x-text="'string'"></span>
                                     </label>
-                                     <!-- Simple text input for string/number -->
-                                    <input 
-                                        type="text" 
-                                        @input="params[key] = $event.target.value" 
-                                        :placeholder="'Enter ' + key"
-                                        class="block w-full px-4 py-3 bg-surface border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors"
-                                    >
-                                     <p x-show="prop.description" class="mt-1 text-xs text-zinc-500" x-text="prop.description"></p>
+                                     
+                                    <template x-if="key === 'thought'">
+                                        <textarea 
+                                            @input="params[key] = $event.target.value" 
+                                            :placeholder="'Enter ' + key"
+                                            rows="3"
+                                            class="block w-full px-4 py-3 bg-surface border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors resize-y"
+                                        ></textarea>
+                                    </template>
+                                    
+                                    <template x-if="key !== 'thought'">
+                                        <input 
+                                            type="text" 
+                                            @input="params[key] = $event.target.value" 
+                                            :placeholder="'Enter ' + key"
+                                            class="block w-full px-4 py-3 bg-surface border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors"
+                                        >
+                                    </template>
+                                    
+                                     <p x-show="prop.description" class="mt-2 text-xs text-zinc-500 leading-normal" x-text="prop.description"></p>
                                 </div>
                             </template>
-                            <div x-show="!selectedTool?.schema?.shape && !selectedTool?.schema?.properties" class="text-center py-4">
-                                <span class="text-zinc-500 text-sm italic">No parameters required.</span>
+                            <div x-show="!selectedTool?.schema?.shape && !selectedTool?.schema?.properties" class="text-center py-8 border border-dashed border-white/10 rounded-xl">
+                                <span class="text-zinc-500 text-sm italic">No input parameters required.</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Output -->
-                    <div x-show="result" class="space-y-2 pt-4 border-t border-white/5">
-                        <label class="block text-xs font-medium text-emerald-400 uppercase tracking-wider">Result</label>
-                        <div class="relative bg-black/50 rounded-xl border border-white/10 overflow-hidden">
-                             <pre class="p-4 text-xs font-mono text-zinc-300 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(result, null, 2)"></pre>
+                    <div x-show="result" class="space-y-4 pt-6 border-t border-white/5" x-transition>
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-emerald-400 uppercase tracking-widest">Execution Result</label>
+                            <span class="text-xs text-zinc-600 font-mono" x-text="new Date().toLocaleTimeString()"></span>
+                        </div>
+                        <div class="relative bg-black/50 rounded-xl border border-white/10 overflow-hidden shadow-inner">
+                             <pre class="p-4 text-xs font-mono text-zinc-300 overflow-x-auto whitespace-pre-wrap max-h-96" x-text="JSON.stringify(result, null, 2)"></pre>
                         </div>
                     </div>
 
                 </div>
 
                 <!-- Footer / Action -->
-                <div class="p-6 border-t border-white/5 bg-surface/50 backdrop-blur-md">
+                <div class="p-8 border-t border-white/5 bg-surface/50 backdrop-blur-md">
                     <button 
                         @click="runTool()"
                         :disabled="loading"
-                        class="w-full py-4 bg-primary text-white font-bold rounded-xl hover:bg-primaryHover disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                        class="w-full py-4 bg-gradient-to-r from-primary to-primaryHover text-white font-bold rounded-xl hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-[0.99] flex items-center justify-center gap-2"
                     >
                         <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span x-text="loading ? 'Running...' : 'Execute Tool'"></span>
-                        <div x-show="!loading" class="px-2 py-0.5 bg-white/20 rounded text-xs">⌘↵</div>
+                        <span x-text="loading ? 'Running Protocol...' : 'Execute Tool'"></span>
                     </button>
+                    <p class="text-center mt-3 text-xs text-zinc-600">Requests are sent directly to the MCP endpoint.</p>
                 </div>
             </div>
         </div>
