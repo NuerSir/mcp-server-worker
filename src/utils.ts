@@ -230,9 +230,25 @@ export const layout = (content: any, title: string) => html`
                     
                     // 3. Execute Tool
                     console.log('Executing Tool:', this.selectedTool.name);
+                    
+                    // Convert types based on schema
+                    const castedParams = {};
+                    const props = this.selectedTool.schema?.properties || {};
+                    for (const key in this.params) {
+                        const val = this.params[key];
+                        const type = props[key]?.type;
+                        if (type === 'number' || type === 'integer') {
+                            castedParams[key] = val === '' ? undefined : Number(val);
+                        } else if (type === 'boolean') {
+                            castedParams[key] = val === 'true' || val === true;
+                        } else {
+                            castedParams[key] = val;
+                        }
+                    }
+
                     const response = await this.makeRequest('tools/call', {
                         name: this.selectedTool.name,
-                        arguments: this.params
+                        arguments: castedParams
                     });
                     
                     this.result = response;

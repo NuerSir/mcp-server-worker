@@ -1,6 +1,17 @@
-# Remote MCP Server on Cloudflare
+# Remote MCP Server - Multi-Platform Deployment
 
-Let's get a remote MCP server up-and-running on Cloudflare Workers complete with OAuth login!
+A high-performance MCP (Model Context Protocol) server running on edge computing platforms.
+
+## 🌐 Platform Support
+
+| Platform | Status | Features |
+|----------|--------|----------|
+| **Cloudflare Workers** | ✅ Full Support | Durable Objects, KV, Assets |
+| **Cloudflare Pages** | ✅ Full Support | Static + Functions |
+| **EdgeOne (腾讯云)** | ⚠️ Static Only | KV 存储, 静态托管 |
+| **Vercel** | ⚠️ Static Only | Serverless Functions |
+
+> **Note**: EdgeOne and Vercel deployments are limited to static asset hosting because this project uses Cloudflare-specific Durable Objects for MCP session management.
 
 ## Develop locally
 
@@ -72,6 +83,26 @@ When you open Claude a browser window should open and allow you to login. You sh
 1. `npx wrangler kv namespace create OAUTH_KV`
 2. Follow the guidance to add the kv namespace ID to `wrangler.jsonc`
 3. `npm run deploy`
+
+## Deploy to EdgeOne (腾讯云)
+
+EdgeOne Pages supports static hosting and Edge Functions. Due to Durable Objects dependency, only static assets can be deployed.
+
+1. Connect your Git repository to EdgeOne Pages console
+2. Configure build settings (or use `edgeone.json`):
+   - Build Command: `npm run build`
+   - Output Directory: `static`
+3. Deploy automatically on git push
+
+> **Limitation**: Full MCP functionality requires Cloudflare deployment.
+
+## Deploy to Vercel
+
+1. Connect your Git repository to Vercel
+2. Vercel will auto-detect settings from `vercel.json`
+3. Deploy automatically
+
+> **Limitation**: Full MCP functionality requires Cloudflare deployment.
 
 ## Call your newly deployed remote MCP server from a remote MCP client
 
