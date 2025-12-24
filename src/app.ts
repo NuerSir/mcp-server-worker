@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import {
 	layout,
-	homeContent,
+	dashboard,
 } from "./utils";
+import { toolRegistry } from "./utils/tools";
 
 export type Bindings = Env;
 
@@ -10,10 +11,16 @@ const app = new Hono<{
 	Bindings: Bindings;
 }>();
 
-// Render a basic homepage placeholder to make sure the app is up
+// Render the modern dashboard
 app.get("/", async (c) => {
-	const content = await homeContent(c.req.raw);
-	return c.html(layout(content, "MCP Remote Auth Demo - Home"));
+	// Register tools if not already registered (or just register anyway as it's idempotent-ish)
+	const { registerAllTools } = await import("./tools");
+	registerAllTools();
+
+	const tools = toolRegistry.getAllTools();
+	// Pass the tools to the dashboard component
+	const content = dashboard(tools);
+	return c.html(layout(content, "Worker MCP - Command Center"));
 });
 
 export default app;
