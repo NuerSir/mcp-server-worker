@@ -356,7 +356,7 @@ export const dashboard = (tools: Tool[]) => html`
     <!-- Playground Slide-over -->
     <div 
         x-show="selectedTool" 
-        class="fixed inset-0 z-[100] overflow-hidden" 
+        class="fixed inset-0 top-16 z-[40] overflow-hidden" 
         style="display: none;"
     >
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" @click="selectedTool = null"></div>
@@ -374,7 +374,7 @@ export const dashboard = (tools: Tool[]) => html`
             >
                 <!-- Header -->
                 <div class="px-8 py-6 border-b border-white/5 flex items-start justify-between bg-surface/50 shadow-sm">
-                    <div class="flex-1 mr-8">
+                    <div class="flex-1">
                         <div class="flex items-center gap-3 mb-3">
                              <div class="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center text-lg font-bold text-primary" x-text="selectedTool?.name.substring(0,2).toUpperCase()"></div>
                              <h2 class="text-2xl font-bold text-white tracking-tight" x-text="selectedTool?.name"></h2>
@@ -385,13 +385,13 @@ export const dashboard = (tools: Tool[]) => html`
                            <p class="text-sm text-zinc-400 whitespace-pre-wrap leading-relaxed" x-text="selectedTool?.description"></p>
                         </div>
                     </div>
-                    <button @click="selectedTool = null" class="p-2 rounded-lg hover:bg-white/5 text-zinc-500 hover:text-white transition-colors">
+                    <button @click="selectedTool = null" class="p-2 ml-4 rounded-lg hover:bg-white/5 text-zinc-500 hover:text-white transition-colors">
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
                 <!-- Body -->
-                <div class="flex-1 overflow-y-auto p-8 space-y-10">
+                <div class="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
                     
                     <!-- Auth -->
                     <div class="space-y-4">
@@ -409,14 +409,15 @@ export const dashboard = (tools: Tool[]) => html`
                         </div>
                         
                         <div class="space-y-6">
-                            <template x-for="(prop, key) in (selectedTool?.schema?.shape || selectedTool?.schema?.properties || {})" :key="key">
+                            <!-- Use .properties because we now pass JSON Schema from app.ts -->
+                            <template x-for="(prop, key) in (selectedTool?.schema?.properties || {})" :key="key">
                                 <div class="group">
                                     <label class="block text-sm font-medium text-zinc-300 mb-2 flex items-center justify-between">
                                         <div class="flex items-center gap-1">
                                             <span x-text="key" class="font-mono text-primary/90"></span>
                                             <span x-show="selectedTool?.schema?.required?.includes(key)" class="text-red-500 text-xs" title="Required">*</span>
                                         </div>
-                                        <span class="text-xs text-zinc-600 font-normal" x-text="'string'"></span>
+                                        <span class="text-xs text-zinc-600 font-normal" x-text="prop.type || 'string'"></span>
                                     </label>
                                      
                                     <template x-if="key === 'thought'">
@@ -424,7 +425,7 @@ export const dashboard = (tools: Tool[]) => html`
                                             @input="params[key] = $event.target.value" 
                                             :placeholder="'Enter ' + key"
                                             rows="3"
-                                            class="block w-full px-4 py-3 bg-surface border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors resize-y"
+                                            class="block w-full px-4 py-3 bg-surface border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors resize-y custom-scrollbar"
                                         ></textarea>
                                     </template>
                                     
@@ -440,7 +441,7 @@ export const dashboard = (tools: Tool[]) => html`
                                      <p x-show="prop.description" class="mt-2 text-xs text-zinc-500 leading-normal" x-text="prop.description"></p>
                                 </div>
                             </template>
-                            <div x-show="!selectedTool?.schema?.shape && !selectedTool?.schema?.properties" class="text-center py-8 border border-dashed border-white/10 rounded-xl">
+                            <div x-show="!selectedTool?.schema?.properties" class="text-center py-8 border border-dashed border-white/10 rounded-xl">
                                 <span class="text-zinc-500 text-sm italic">No input parameters required.</span>
                             </div>
                         </div>

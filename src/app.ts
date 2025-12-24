@@ -18,8 +18,17 @@ app.get("/", async (c) => {
 	registerAllTools();
 
 	const tools = toolRegistry.getAllTools();
+	// Convert Zod schemas to JSON Schema for the frontend
+	const { zodToJsonSchema } = await import("zod-to-json-schema");
+	const { z } = await import("zod");
+
+	const serializableTools = tools.map(t => ({
+		...t,
+		schema: zodToJsonSchema(z.object(t.schema))
+	}));
+
 	// Pass the tools to the dashboard component
-	const content = dashboard(tools);
+	const content = dashboard(serializableTools as any);
 	return c.html(layout(content, "Worker MCP - Command Center"));
 });
 
