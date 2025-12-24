@@ -31,9 +31,7 @@ export class MyMCP extends McpAgent {
 }
 
 // Create a handler for MCP request
-const mcpHandler = MyMCP.serve('/mcp', {
-    transport: 'sse'
-});
+const mcpHandler = MyMCP.serve('/mcp');
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {

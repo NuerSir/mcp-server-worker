@@ -98,46 +98,35 @@ export const layout = (content: any, title: string) => html`
             params: {},
             copySuccess: '',
             params: {},
+            params: {},
             copySuccess: '',
-            // Session Management
-            sseConnection: null,
-            postEndpoint: null,
-            sessionReady: false,
+            sessionId: crypto.randomUUID(),
+            clientInitialized: false,
             validationError: null,
             
-            async initSession() {
-                if (this.sessionReady && this.sseConnection) return true;
-                
-                return new Promise((resolve, reject) => {
-                    // Close existing if checking
-                    if (this.sseConnection) this.sseConnection.close();
-                    
-                    // Connect to SSE Endpoint to get Session ID/Endpoint
-                    const sseUrl = new URL('/mcp', window.location.origin);
-                    if (this.apiKey) sseUrl.searchParams.set('apiKey', this.apiKey);
-                    
-                    this.sseConnection = new EventSource(sseUrl.toString());
-                    
-                    this.sseConnection.onopen = () => {
-                        console.log('SSE Connected');
-                    };
-                    
-                    this.sseConnection.addEventListener('endpoint', (event) => {
-                         console.log('Received endpoint:', event.data);
-                         // event.data contains the relative or absolute path for POST
-                         // It usually includes the session ID (e.g. /mcp?sessionId=...)
-                         this.postEndpoint = event.data;
-                         this.sessionReady = true;
-                         resolve(true);
-                    });
-                    
-                    this.sseConnection.onerror = (err) => {
-                        console.error('SSE Error:', err);
-                        this.sseConnection.close();
-                        this.sessionReady = false;
-                        reject(new Error('Failed to connect to MCP server. Check API Key.'));
-                    };
+            async makeRequest(method, params = null, isNotification = false) {
+                 const response = await fetch('/mcp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Mcp-Session-Id': this.sessionId,
+                        ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: method,
+                        ...(params ? { params } : {}),
+                        ...(isNotification ? {} : { id: Date.now() })
+                    })
                 });
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error('Server error ' + response.status + ': ' + text);
+                }
+                
+                if (isNotification) return null;
+                return await response.json();
             },
 
             validateParams() {
@@ -166,52 +155,47 @@ export const layout = (content: any, title: string) => html`
                 this.result = null;
                 
                 try {
-                    // 2. Ensure Session
-                    if (!this.sessionReady) {
-                        await this.initSession();
+                    // 2. Handshake (if needed)
+                    if (!this.clientInitialized) {
+                        try {
+                            console.log('Initializing Session:', this.sessionId);
+                            // Step A: Initialize
+                            await this.makeRequest('initialize', {
+                                protocolVersion: '2024-11-05',
+                                capabilities: { roots: { listChanged: true } },
+                                clientInfo: { name: 'dashboard', version: '1.0' }
+                            });
+                            
+                            // Step B: Initialized Notification
+                            await this.makeRequest('notifications/initialized', null, true);
+                            
+                            this.clientInitialized = true;
+                        } catch (e) {
+                            // If initialization fails, maybe session is already active? 
+                            // Or it's a fatal error. Reset session.
+                            console.warn('Init failed, retrying with new session', e);
+                            this.sessionId = crypto.randomUUID();
+                            this.clientInitialized = false;
+                            throw e; 
+                        }
                     }
                     
-                    // 3. Construct URL
-                    // If endpoint is relative, make it absolute? It usually comes as /mcp?sessionId=...
-                    const fetchUrl = this.postEndpoint ? this.postEndpoint : '/mcp';
-                    
-                    console.log('Posting to:', fetchUrl);
-
-                    const response = await fetch(fetchUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(this.apiKey ? { 'Authorization': 'Bearer ' + this.apiKey } : {})
-                        },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            method: 'tools/call',
-                            params: {
-                                name: this.selectedTool.name,
-                                arguments: this.params
-                            },
-                            id: Date.now()
-                        })
+                    // 3. Execute Tool
+                    console.log('Executing Tool:', this.selectedTool.name);
+                    const response = await this.makeRequest('tools/call', {
+                        name: this.selectedTool.name,
+                        arguments: this.params
                     });
                     
-                    if (response.status === 401) {
-                        this.result = { error: 'Unauthorized: Please provide a valid API Key' };
-                    } else if (!response.ok) {
-                        const text = await response.text();
-                         try {
-                            this.result = JSON.parse(text);
-                        } catch {
-                            this.result = { error: 'Server error ' + response.status + ': ' + text };
-                        }
-                    } else {
-                        const data = await response.json();
-                        this.result = data;
-                    }
+                    this.result = response;
+
                 } catch (e) {
                     this.result = { error: e.message };
-                    // Reset session on error to force reconnect next time
-                    this.sessionReady = false;
-                    if(this.sseConnection) this.sseConnection.close();
+                    // If 404/Session Not Found, reset init state
+                    if (e.message.includes('Session not found')) {
+                        this.clientInitialized = false;
+                        this.sessionId = crypto.randomUUID();
+                    }
                 } finally {
                     this.loading = false;
                 }
