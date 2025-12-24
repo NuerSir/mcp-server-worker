@@ -65,7 +65,26 @@ export default {
                 // I will assume the key will be present.
             }
 
-            return mcpHandler.fetch(request, env, ctx);
+            // Create a new request based on the original one, but perform cleanups
+            const newUrl = new URL(request.url);
+            // Remove apiKey from the URL passed to MCP agent to avoid validation issues
+            newUrl.searchParams.delete("apiKey");
+
+            const newRequest = new Request(newUrl.toString(), request);
+
+            try {
+                const response = await mcpHandler.fetch(newRequest, env, ctx);
+                if (response.status === 400) {
+                    // Clone response to read text without consuming original if needed (though we return it)
+                    // Or just log it.
+                    const text = await response.clone().text();
+                    console.error("MCP Backend returned 400:", text);
+                }
+                return response;
+            } catch (e) {
+                console.error("MCP Handler Error:", e);
+                return new Response("Internal Server Error", { status: 500 });
+            }
         }
 
         return new Response("Not Found", { status: 404 });
