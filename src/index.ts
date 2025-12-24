@@ -31,7 +31,9 @@ export class MyMCP extends McpAgent {
 }
 
 // Create a handler for MCP request
-const mcpHandler = MyMCP.serve('/mcp');
+const mcpHandler = MyMCP.serve('/mcp', {
+    transport: 'sse'
+});
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -68,29 +70,15 @@ export default {
             // Create a new request based on the original one, but perform cleanups
             const newUrl = new URL(request.url);
 
-            // Handle Session ID: EventSource can't send headers, so we pass it in query and inject it as header here
-            const querySessionId = newUrl.searchParams.get("sessionId");
-            const newHeaders = new Headers(request.headers);
-
-            if (querySessionId) {
-                newHeaders.set("Mcp-Session-Id", querySessionId);
-                newUrl.searchParams.delete("sessionId");
-            }
-
             // Remove apiKey from the URL passed to MCP agent to avoid validation issues
+            // We KEEP sessionId because the 'sse' transport handler reads it from query params.
             newUrl.searchParams.delete("apiKey");
 
-            const newRequest = new Request(newUrl.toString(), {
-                method: request.method,
-                headers: newHeaders,
-                body: request.body,
-                redirect: request.redirect
-            });
+            const newRequest = new Request(newUrl.toString(), request);
 
             try {
                 // Debug Logging
                 console.log(`[Proxy] ${newRequest.method} ${newRequest.url}`);
-                console.log(`[Proxy] Header Mcp-Session-Id: ${newRequest.headers.get("Mcp-Session-Id")}`);
 
                 const response = await mcpHandler.fetch(newRequest, env, ctx);
 
