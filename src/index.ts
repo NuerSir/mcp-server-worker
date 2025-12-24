@@ -88,13 +88,17 @@ export default {
             });
 
             try {
+                // Debug Logging
+                console.log(`[Proxy] ${newRequest.method} ${newRequest.url}`);
+                console.log(`[Proxy] Header Mcp-Session-Id: ${newRequest.headers.get("Mcp-Session-Id")}`);
+
                 const response = await mcpHandler.fetch(newRequest, env, ctx);
-                if (response.status === 400) {
-                    // Clone response to read text without consuming original if needed (though we return it)
-                    // Or just log it.
+
+                if (!response.ok) {
                     const text = await response.clone().text();
-                    console.error("MCP Backend returned 400:", text);
+                    console.error(`[Proxy] Agent returned ${response.status}: ${text}`);
                 }
+
                 return response;
             } catch (e) {
                 console.error("MCP Handler Error:", e);
