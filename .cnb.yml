@@ -75,12 +75,11 @@ $:
   vscode:
     - runner:
         cpus: 2
-        image: node:22
       services:
         - vscode
         - docker
       docker:
-        image: node:22
+        build: .ide/Dockerfile
         volumes:
           - /data/codewiki/${CNB_REPO_SLUG}:data
       stages:
