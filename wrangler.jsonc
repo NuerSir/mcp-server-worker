@@ -16,5 +16,10 @@
 	"assets": {
 		"directory": "./static/",
 		"binding": "ASSETS"
+	},
+	"pages": {
+		"peer_dependencies": {
+			"@cloudflare/kv-asset-handler": "^2.0.0"
+		}
 	}
 }

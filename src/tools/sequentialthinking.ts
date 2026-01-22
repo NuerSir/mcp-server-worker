@@ -1,109 +1,122 @@
-import { z } from 'zod';
-import { Tool } from '../utils/tools';
+import { z } from "zod";
+import { Tool } from "../utils/tools";
 
 interface ThoughtData {
-    thought: string;
-    thoughtNumber: number;
-    totalThoughts: number;
-    isRevision?: boolean;
-    revisesThought?: number;
-    branchFromThought?: number;
-    branchId?: string;
-    needsMoreThoughts?: boolean;
-    nextThoughtNeeded: boolean;
+	thought: string;
+	thoughtNumber: number;
+	totalThoughts: number;
+	isRevision?: boolean;
+	revisesThought?: number;
+	branchFromThought?: number;
+	branchId?: string;
+	needsMoreThoughts?: boolean;
+	nextThoughtNeeded: boolean;
 }
 
 class SequentialThinkingServer {
-    private thoughtHistory: ThoughtData[] = [];
-    private branches: Record<string, ThoughtData[]> = {};
+	private thoughtHistory: ThoughtData[] = [];
+	private branches: Record<string, ThoughtData[]> = {};
 
-    private validateThoughtData(input: unknown): ThoughtData {
-        const data = input as Record<string, unknown>;
+	private validateThoughtData(input: unknown): ThoughtData {
+		const data = input as Record<string, unknown>;
 
-        if (!data.thought || typeof data.thought !== 'string') {
-            throw new Error('Invalid thought: must be a string');
-        }
-        if (!data.thoughtNumber || typeof data.thoughtNumber !== 'number') {
-            throw new Error('Invalid thoughtNumber: must be a number');
-        }
-        if (!data.totalThoughts || typeof data.totalThoughts !== 'number') {
-            throw new Error('Invalid totalThoughts: must be a number');
-        }
-        if (typeof data.nextThoughtNeeded !== 'boolean') {
-            throw new Error('Invalid nextThoughtNeeded: must be a boolean');
-        }
+		if (!data.thought || typeof data.thought !== "string") {
+			throw new Error("Invalid thought: must be a string");
+		}
+		if (!data.thoughtNumber || typeof data.thoughtNumber !== "number") {
+			throw new Error("Invalid thoughtNumber: must be a number");
+		}
+		if (!data.totalThoughts || typeof data.totalThoughts !== "number") {
+			throw new Error("Invalid totalThoughts: must be a number");
+		}
+		if (typeof data.nextThoughtNeeded !== "boolean") {
+			throw new Error("Invalid nextThoughtNeeded: must be a boolean");
+		}
 
-        return {
-            thought: data.thought,
-            thoughtNumber: data.thoughtNumber,
-            totalThoughts: data.totalThoughts,
-            nextThoughtNeeded: data.nextThoughtNeeded,
-            isRevision: data.isRevision as boolean | undefined,
-            revisesThought: data.revisesThought as number | undefined,
-            branchFromThought: data.branchFromThought as number | undefined,
-            branchId: data.branchId as string | undefined,
-            needsMoreThoughts: data.needsMoreThoughts as boolean | undefined,
-        };
-    }
+		return {
+			thought: data.thought,
+			thoughtNumber: data.thoughtNumber,
+			totalThoughts: data.totalThoughts,
+			nextThoughtNeeded: data.nextThoughtNeeded,
+			isRevision: data.isRevision as boolean | undefined,
+			revisesThought: data.revisesThought as number | undefined,
+			branchFromThought: data.branchFromThought as number | undefined,
+			branchId: data.branchId as string | undefined,
+			needsMoreThoughts: data.needsMoreThoughts as boolean | undefined,
+		};
+	}
 
-    public processThought(input: unknown): { content: Array<{ type: string; text: string }>; isError?: boolean } {
-        try {
-            const validatedInput = this.validateThoughtData(input);
+	public processThought(input: unknown): {
+		content: Array<{ type: string; text: string }>;
+		isError?: boolean;
+	} {
+		try {
+			const validatedInput = this.validateThoughtData(input);
 
-            if (validatedInput.thoughtNumber > validatedInput.totalThoughts) {
-                validatedInput.totalThoughts = validatedInput.thoughtNumber;
-            }
+			if (validatedInput.thoughtNumber > validatedInput.totalThoughts) {
+				validatedInput.totalThoughts = validatedInput.thoughtNumber;
+			}
 
-            this.thoughtHistory.push(validatedInput);
+			this.thoughtHistory.push(validatedInput);
 
-            if (validatedInput.branchFromThought && validatedInput.branchId) {
-                if (!this.branches[validatedInput.branchId]) {
-                    this.branches[validatedInput.branchId] = [];
-                }
-                this.branches[validatedInput.branchId].push(validatedInput);
-            }
+			if (validatedInput.branchFromThought && validatedInput.branchId) {
+				if (!this.branches[validatedInput.branchId]) {
+					this.branches[validatedInput.branchId] = [];
+				}
+				this.branches[validatedInput.branchId].push(validatedInput);
+			}
 
-            const nextStepMessage = validatedInput.nextThoughtNeeded
-                ? `Next thought is needed. Please provide thought number ${validatedInput.thoughtNumber + 1}.`
-                : "No further thoughts are needed. The process is complete.";
+			const nextStepMessage = validatedInput.nextThoughtNeeded
+				? `Next thought is needed. Please provide thought number ${validatedInput.thoughtNumber + 1}.`
+				: "No further thoughts are needed. The process is complete.";
 
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: JSON.stringify({
-                            thoughtNumber: validatedInput.thoughtNumber,
-                            totalThoughts: validatedInput.totalThoughts,
-                            nextThoughtNeeded: validatedInput.nextThoughtNeeded,
-                            branches: Object.keys(this.branches),
-                            thoughtHistoryLength: this.thoughtHistory.length,
-                            message: nextStepMessage
-                        }, null, 2)
-                    }
-                ]
-            };
-        } catch (error) {
-            return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify({
-                        error: error instanceof Error ? error.message : String(error),
-                        status: 'failed'
-                    }, null, 2)
-                }],
-                isError: true
-            };
-        }
-    }
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								thoughtNumber: validatedInput.thoughtNumber,
+								totalThoughts: validatedInput.totalThoughts,
+								nextThoughtNeeded: validatedInput.nextThoughtNeeded,
+								branches: Object.keys(this.branches),
+								thoughtHistoryLength: this.thoughtHistory.length,
+								message: nextStepMessage,
+							},
+							null,
+							2,
+						),
+					},
+				],
+			};
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								error: error instanceof Error ? error.message : String(error),
+								status: "failed",
+							},
+							null,
+							2,
+						),
+					},
+				],
+				isError: true,
+			};
+		}
+	}
 }
 
 export class SequentialThinkingTool extends Tool {
-    private server = new SequentialThinkingServer();
+	private server = new SequentialThinkingServer();
 
-    constructor() {
-        super(
-            'sequentialthinking',
-            `
+	constructor() {
+		super(
+			"sequentialthinking",
+			`
                 A detailed tool for dynamic and reflective problem-solving through thoughts.
                 This tool helps analyze problems through a flexible thinking process that can adapt and evolve.
                 Each thought can build on, question, or revise previous insights as understanding deepens.
@@ -159,21 +172,32 @@ export class SequentialThinkingTool extends Tool {
                 10. Provide a single, ideally correct answer as the final output
                 11. Only set next_thought_needed to false when truly done and a satisfactory answer is reached
             `,
-            {
-                thought: z.string().describe('Your current thinking step'),
-                nextThoughtNeeded: z.boolean().describe('Whether another thought step is needed'),
-                thoughtNumber: z.number().min(1).describe('Current thought number'),
-                totalThoughts: z.number().min(1).describe('Estimated total thoughts needed'),
-                isRevision: z.boolean().optional().describe('Whether this revises previous thinking'),
-                revisesThought: z.number().min(1).optional().describe('Which thought is being reconsidered'),
-                branchFromThought: z.number().min(1).optional().describe('Branching point thought number'),
-                branchId: z.string().optional().describe('Branch identifier'),
-                needsMoreThoughts: z.boolean().optional().describe('If more thoughts are needed')
-            }
-        );
-    }
+			{
+				thought: z.string().describe("Your current thinking step"),
+				nextThoughtNeeded: z.boolean().describe("Whether another thought step is needed"),
+				thoughtNumber: z.number().min(1).describe("Current thought number"),
+				totalThoughts: z.number().min(1).describe("Estimated total thoughts needed"),
+				isRevision: z
+					.boolean()
+					.optional()
+					.describe("Whether this revises previous thinking"),
+				revisesThought: z
+					.number()
+					.min(1)
+					.optional()
+					.describe("Which thought is being reconsidered"),
+				branchFromThought: z
+					.number()
+					.min(1)
+					.optional()
+					.describe("Branching point thought number"),
+				branchId: z.string().optional().describe("Branch identifier"),
+				needsMoreThoughts: z.boolean().optional().describe("If more thoughts are needed"),
+			},
+		);
+	}
 
-    async execute(args: Record<string, unknown>) {
-        return this.server.processThought(args);
-    }
+	async execute(args: Record<string, unknown>) {
+		return this.server.processThought(args);
+	}
 }

@@ -1,8 +1,5 @@
 import { Hono } from "hono";
-import {
-	layout,
-	dashboard,
-} from "./utils";
+import { layout, dashboard } from "./utils";
 import { toolRegistry } from "./utils/tools";
 
 export type Bindings = Env;
@@ -22,9 +19,9 @@ app.get("/", async (c) => {
 	const { zodToJsonSchema } = await import("zod-to-json-schema");
 	const { z } = await import("zod");
 
-	const serializableTools = tools.map(t => ({
+	const serializableTools = tools.map((t) => ({
 		...t,
-		schema: zodToJsonSchema(z.object(t.schema))
+		schema: zodToJsonSchema(z.object(t.schema)),
 	}));
 
 	// Pass the tools to the dashboard component
